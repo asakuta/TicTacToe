@@ -1,0 +1,825 @@
+<html>
+<head>
+    <title>Tic Tac Toe</title>
+<script>
+var fieldWidth=3;
+var fieldHeight=3;
+var AI;
+var player;
+var nextTurn;
+var firstPlayer;
+var timer=0;
+var winner="none";
+function initialisefield()
+{
+    field=new Array(fieldWidth);
+    for(var i=0; i<fieldWidth; i=i+1)
+    {
+        field[i]=new Array(fieldHeight);
+    }
+    for(var i=0; i<fieldWidth; i=i+1)
+    {
+        for(var j=0; j<fieldHeight; j=j+1)
+        {
+            field[i][j]=2;
+        }
+    }
+    render();
+}
+function chooseMark(mark)
+{
+    var symbol;
+    if(mark==0)
+    {
+        player=0;
+        AI=1;
+        nextTurn=player;
+        symbol="the circle!";
+    }
+    if(mark==1)
+    {
+        player=1;
+        AI=0;
+        nextTurn=player;
+        symbol="the X!";
+    }
+    document.getElementById("selectMark").style.display="none";
+    document.getElementById("rollDice").style.display="block";
+    document.getElementById("confirmMark").innerText="Okay, you're "+symbol;
+}
+function janken()
+{
+    var dice=Math.round(Math.random());
+    firstPlayer=dice;
+    var person;
+    if(firstPlayer==player)
+    {
+        person="you're";
+    }
+    if(firstPlayer==AI)
+    {
+        person="I'm";
+        nextTurn=AI;
+    }
+    document.getElementById("rollDice").style.display="none";
+    document.getElementById("diceResult").style.display="block";
+    document.getElementById("message").innerText="Looks like "+person+" going first!"
+}
+function startGame()
+{
+    document.getElementById("diceResult").style.display="none";
+    if(firstPlayer==AI)
+    {
+        var row=Math.round(Math.random()*2);
+        var column=Math.round(Math.random()*2);
+        var cell={"row": row, "column": column};
+        takeTurn(AI, cell);
+    }
+}
+function takeTurn(mark, cell)
+{
+    if(nextTurn==mark)
+    {
+        field[cell.row][cell.column]=mark;
+        refresh();
+        if(nextTurn!=2)
+        {
+            if(mark==player)
+            {
+                nextTurn=AI;
+                AIsTurn();
+            }
+            if(mark==AI)
+            {
+                nextTurn=player;
+            }
+        }
+    }
+}
+function playersTurn(row, column)
+{
+    if(field[row][column]==2)
+    {
+        var cell={"row": row, "column": column};
+        takeTurn(player, cell);
+    }
+}
+function AIsTurn()
+{
+    var result;
+    var nextMove=[];
+    for(var i=0; i<fieldWidth; i=i+1)
+    {
+        result=reachLines("urgent", i, "row");
+        if(result!=false)
+        {
+            nextMove[nextMove.length]=result;
+        }
+    }
+    for(var i=0; i<fieldHeight; i=i+1)
+    {
+        result=reachLines("urgent", i, "column");
+        if(result!=false)
+        {
+            nextMove[nextMove.length]=result;
+        }
+    }
+    result=reachDiagonals("urgent", "downSlope")
+    if(result!=false)
+    {
+        nextMove[nextMove.length]=result;
+    }
+    result=reachDiagonals("urgent", "upSlope")
+    if(result!=false)
+    {
+        nextMove[nextMove.length]=result;
+    }
+    if(nextMove.length==0)
+    {
+        for(var i=0; i<fieldWidth; i=i+1)
+        {
+            result=reachLines("free", i, "row");
+            if(result!=false)
+            {
+                for(var j=0; j<result.length; j=j+1)
+                {
+                    nextMove[nextMove.length]=result[j];
+                }
+            }
+        }
+        for(var i=0; i<fieldHeight; i=i+1)
+        {
+            result=reachLines("free", i, "column");
+            if(result!=false)
+            {
+                for(var j=0; j<result.length; j=j+1)
+                {
+                    nextMove[nextMove.length]=result[j];
+                }
+            }
+        }
+        result=reachDiagonals("free", "downSlope")
+        if(result!=false)
+        {
+            for(var i=0; i<result.length; i=i+1)
+            {
+                nextMove[nextMove.length]=result[i];
+            }
+        }
+        result=reachDiagonals("free", "upSlope")
+        if(result!=false)
+        {
+            for(var i=0; i<result.length; i=i+1)
+            {
+                nextMove[nextMove.length]=result[i];
+            }
+        }
+        if(nextMove.length==0)
+        {
+            for(var i=0; i<fieldWidth; i=i+1)
+            {
+                result=reachLines("finish", i, "row")
+                if(result!=false)
+                {
+                    for(var j=0; j<result.length; j=j+1)
+                    {
+                        nextMove[nextMove.length]=result[j];
+                    }
+                }
+            }
+            if(nextMove.length==0)
+            {
+                return;
+            }
+            var chosenMove=Math.round(Math.random()*(nextMove.length-1));
+            takeTurn(AI, nextMove[chosenMove]);
+            return;
+        }
+        if(nextMove.length>1)
+        {
+            result=reviewList(nextMove);
+            var chosenMove=Math.round(Math.random()*(result.length-1));
+            takeTurn(AI, result[chosenMove]);
+        }
+        if(nextMove.length==1)
+        {
+            takeTurn(AI, nextMove[0]);
+        }
+    }
+    else
+    {
+        if(nextMove.length>1)
+        {
+            result=reviewList(nextMove);
+            var chosenMove=Math.round(Math.random()*(result.length-1));
+            takeTurn(AI, result[chosenMove]);
+        }
+        if(nextMove.length==1)
+        {
+            takeTurn(AI, nextMove[0]);
+        }
+    }
+}
+function reachLines(status, line, direction)
+{
+    var Cell;
+    var playerCells=0;
+    var AIcells=0;
+    var openCells=[];
+    var available=false;
+    for(var i=0; i<3; i=i+1)
+    {
+        if(direction=="row")
+        {
+            Cell=field[line][i];
+        }
+        if(direction=="column")
+        {
+            Cell=field[i][line];
+        }
+        if(Cell==player)
+        {
+            playerCells=playerCells+1;
+        }
+        if(Cell==AI)
+        {
+            AIcells=AIcells+1;
+        }
+        if(Cell==2)
+        {
+            available=true;
+            if(direction=="row")
+            {
+                openCells[openCells.length]={"row": line, "column": i, "chance": 1};
+            }
+            if(direction=="column")
+            {
+                openCells[openCells.length]={"row": i, "column": line, "chance": 1};
+            }
+        }
+    }
+    if(status=="urgent")
+    {
+        if(playerCells==2)
+        {
+            if(available==true)
+            {
+                return openCells[0];
+            }
+        }
+        if(AIcells==2)
+        {
+            if(available==true)
+            {
+                openCells[0].chance=5;
+                return openCells[0];
+            }
+        }
+        return false;
+    }
+    if(status=="free")
+    {
+        if(available==true && playerCells==0)
+        {
+            if(AIcells==1)
+            {
+                for(var i=0; i<openCells.length; i=i+1)
+                {
+                    openCells[i].chance=openCells[i].chance+1;
+                }
+            }
+            return openCells;
+        }
+        return false;
+    }
+    if(status=="finish")
+    {
+        if(openCells.length>0)
+        {
+            return openCells;
+        }
+        return false;
+    }
+    if(status=="score")
+    {
+        var congrats; 
+        if(playerCells==3)
+        {
+            congrats="player";
+            console.debug("congrats "+congrats);
+            return congrats;
+        }
+        if(AIcells==3)
+        {
+            congrats="AI";
+            console.debug("congrats "+congrats);
+            return congrats;
+        }
+        return false;
+    }
+}
+function reachDiagonals(status, direction)
+{
+    var Cell;
+    var playerCells=0;
+    var AIcells=0;
+    var openCells=[];
+    var available=false;
+    for(var i=0; i<3; i=i+1)
+    {
+        if(direction=="downSlope")
+        {
+            Cell=field[i][i];
+        }
+        if(direction=="upSlope")
+        {
+            Cell=field[i][2-i];
+        }
+        if(Cell==player)
+        {
+            playerCells=playerCells+1;
+        }
+        if(Cell==AI)
+        {
+            AIcells=AIcells+1;
+        }
+        if(Cell==2)
+        {
+            available=true;
+            if(direction=="downSlope")
+            {
+                openCells[openCells.length]={"row": i, "column": i, "chance": 1};
+            }
+            if(direction=="upSlope")
+            {
+                openCells[openCells.length]={"row": i, "column": 2-i, "chance": 1};
+            }
+        }
+    }
+    if(status=="urgent")
+    {
+        if(playerCells==2)
+        {
+            if(available==true)
+            {
+                return openCells[0];
+            }
+        }
+        if(AIcells==2)
+        {
+            if(available==true)
+            {
+                openCells[0].chance=5;
+                return openCells[0];
+            }
+        }
+        return false;
+    }
+    if(status=="free")
+    {
+        if(available==true && playerCells==0)
+        {
+            if(AIcells==1)
+            {
+                for(var i=0; i<openCells.length; i=i+1)
+                {
+                    openCells[i].chance=openCells[i].chance+1;
+                }
+            }
+            return openCells;
+        }
+        return false;
+    }
+    if(status=="score")
+    {
+        var congrats;
+        if(playerCells==3)
+        {
+            congrats="player";
+            console.debug("congrats "+congrats);
+            return congrats;
+        }
+        if(AIcells==3)
+        {
+            congrats="AI";
+            console.debug("congrats "+congrats);
+            return congrats;
+        }
+        return false;
+    }
+}
+function reviewList(list)
+{
+    var checked=[];
+    for(var i=0; i<list.length; i=i+1)
+    {
+        var tempList=[];
+        var current=list[i]
+        checked[checked.length]=current;
+        for(var j=0; j<checked.length; j=j+1)
+        {
+            tempList[tempList.length]=checked[j];
+        }
+        for(var k=i+1; k<list.length; k=k+1)
+        {
+            if(list[i].row!=list[k].row || list[i].column!=list[k].column)
+            {
+                tempList[tempList.length]=list[k];
+            }
+            if(list[i].row==list[k].row && list[i].column==list[k].column)
+            {
+                checked[checked.length-1].chance=checked[checked.length-1].chance+1;
+            }
+        }
+        list=tempList;
+    }
+    var chanceCount=1;
+    var newList=[];
+    for(i=0; i<list.length; i=i+1)
+    {
+        if(list[i].chance>chanceCount)
+        {
+            chanceCount=list[i].chance;
+        }
+    }
+    for(i=0; i<list.length; i=i+1)
+    {
+        if(list[i].chance==chanceCount)
+        {
+            newList[newList.length]=list[i];
+        }
+    }
+    list=newList;
+    return list;
+}
+function refresh()
+{
+    render();
+    var result;
+    for(var i=0; i<fieldWidth; i=i+1)
+    {
+        result=reachLines("score", i, "row");
+        if(result!=false)
+        {
+            winner=result;
+            console.debug(winner+" got a row");
+        }
+    }
+    for(var i=0; i<fieldHeight; i=i+1)
+    {
+        result=reachLines("score", i, "column");
+        if(result!=false)
+        {
+            winner=result;
+            console.debug(winner+" got a column");
+        }
+    }
+    result=reachDiagonals("score", "downSlope")
+    if(result!=false)
+    {
+        winner=result;
+        console.debug(winner+" got a diagonal");
+    }
+    result=reachDiagonals("score", "upSlope")
+    if(result!=false)
+    {
+        winner=result;
+        console.debug(winner+" got a diagonal");
+    }
+    if(winner!="none")
+    {
+        nextTurn=2;
+        if(winner=="player")
+        {
+            winner=player;
+        }
+        if(winner=="AI")
+        {
+            winner=AI;
+        }
+        console.debug(winner+" won");
+        pauseGame();
+    }
+    if(winner=="none")
+    {
+        var openCells=[];
+        for(var i=0; i<fieldWidth; i=i+1)
+        {
+            result=reachLines("finish", i, "row");
+            for(var j=0; j<result.length; j=j+1)
+            {
+                openCells[openCells.length]=result[j];
+            }
+        }
+        if(openCells.length==0)
+        {
+            nextTurn=2;
+            pauseGame();
+        }
+    }
+}
+function pauseGame()
+{
+    timer=timer+1;
+    if(timer==10)
+    {
+        showScore(winner);
+    }
+    setTimeout(pauseGame, 50);
+}
+function showScore(person)
+{
+    if(person!="none")
+    {
+        document.getElementById("score").style.display="block";
+        if(person==AI)
+        {
+            document.getElementById("result").innerText="I won this time!";
+        }
+        if(person==player)
+        {
+            document.getElementById("result").innerText="Congrats! You won!";
+        }
+    }
+    if(person=="none")
+    {
+        document.getElementById("score").style.display="block";
+        document.getElementById("result").innerText="It's a tie!";
+    }
+}
+function render()
+{
+    var scaleWidth=window.innerWidth/fieldWidth;
+    var scaleHeight=window.innerHeight/fieldHeight;
+    for(var i=0; i<fieldWidth; i=i+1)
+    {
+        for(var j=0; j<fieldHeight; j=j+1)
+        {
+            var circle=document.getElementById("c"+i+"-"+j);
+            var xMark=document.getElementById("x"+i+"-"+j);
+            var blank=document.getElementById("b"+i+"-"+j);
+            var id=field[i][j];
+            if(id==0)
+            {
+                circle.style.display="block";
+                xMark.style.display="none";
+                blank.style.display="none";
+            }
+            if(id==1)
+            {
+                circle.style.display="none";
+                xMark.style.display="block";
+                blank.style.display="none";
+            }
+            if(id==2)
+            {
+                circle.style.display="none";
+                xMark.style.display="none";
+                blank.style.display="block";
+            }
+            document.getElementById(i+"-"+j).style.height=(scaleHeight-24)+"px";
+        }
+    }
+}
+</script>
+<style>
+    .selectMark
+    {
+        position: absolute;
+        z-index: 1;
+        left: 50%;
+        top: 50%;
+        margin-left: -253px;
+        margin-top: -180px;
+        display: block;
+        width: 500px;
+        height: auto;
+        text-align: center;
+        background-color:white;
+        color: black;
+        font-family: Arial, sans-serif;
+        font-size: 30;
+        border: 2px;
+        border-style: solid;
+        border-color: black;
+    }
+    .selectMark img
+    {
+        display: inline-block;
+        padding: 20px 20px;
+        margin: 0px 10px;
+        width: auto;
+        height: 150px;
+        border: 1px;
+        border-style: solid;
+        border-color: white;
+    }
+    .selectMark img:hover
+    {
+        cursor: pointer;
+        border: 1px;
+        border-style: solid;
+        border-color: black 
+    }
+    .rollDice
+    {
+        position: absolute;
+        z-index: 1;
+        left: 50%;
+        top: 50%;
+        margin-left: -300px;
+        margin-top: -150px;
+        display: block;
+        width: 600px;
+        height: auto;
+        text-align: center;
+        background-color:white;
+        color: black;
+        font-family: Arial, sans-serif;
+        font-size: 30;
+        border: 2px;
+        border-style: solid;
+        border-color: black;
+    }
+    #score
+    {
+        margin-left: -300px;
+        margin-top: -200px;
+    }
+    #playAgain
+    {
+        padding-bottom: 20px;
+    }
+    button
+    {
+        padding: 15px 25px;
+        background-color: DDDDDD;
+        color: black;
+        text-align: center;
+        font-size: 30;
+        cursor: pointer;
+        border: 1px;
+        border-style: solid;
+        border-color: black;
+    }
+    button:hover
+    {
+        background-color: BBBBBB;
+    }
+    a
+    {
+        padding: 15px 25px;
+        background-color: DDDDDD;
+        color: black;
+        text-align: center;
+        margin-top: 30px;
+        font-size: 30;
+        cursor: pointer;
+        border: 1px;
+        border-style: solid;
+        border-color: black;
+        text-decoration: none;
+    }
+    a:hover
+    {
+        background-color: BBBBBB;
+    }
+    table
+    {
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        border-collapse: collapse;
+    }
+    tbody
+    {
+        display: table;
+        width: 100%;
+        height: 100%;
+    }
+    tr
+    {
+        border: 6px;
+        border-bottom-style: solid;
+        border-color: black;
+    }
+    tr:last-child
+    {
+        border-color: white;
+    }
+    td
+    {
+        width: 33%;
+    }
+    td:first-child
+    {
+        border: 6px;
+        border-right-style: solid;
+        border-color: black;
+    }
+    td:last-child
+    {
+        border: 6px;
+        border-left-style: solid;
+        border-color: black;
+    }
+    td img
+    {
+        z-index: 0;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        max-width: 100%;
+        max-height: 100%;
+    }
+</style>
+</head>
+<body onload="initialisefield()">
+    <div class="selectMark" id="selectMark" style="display: block">
+        <p>
+            Select your mark:
+        </p>
+        <p>
+            <img src="X-mark.jpg" id="selectX" onclick="chooseMark(1)">
+            <img src="Circle.jpg" id="selectO" onclick="chooseMark(0)">
+        </p>
+    </div>
+    <div class="rollDice" id="rollDice" style="display: none">
+        <p id="confirmMark"></p>
+        <p>
+            Let's roll a dice to see who goes first!
+        </p>
+        <p>
+            <button id="button1" onclick="janken()">Okay</button>
+        </p>
+    </div>
+    <div class="rollDice" id="diceResult" style="display: none">
+        <p id="message"></p>
+        <p>
+            <button id="button2" onclick="startGame()">Okay</button>
+        </p>
+    </div>
+    <div class="rollDice" id="score" style="display: none">
+        <p id="result"></p>
+        <p id="playAgain">Do you wanna play again?</p>
+        <p>
+            <a href="jslesson36_edge.html">Sure!</a>
+        </p>
+    </div>
+    <table>
+        <tbody>
+        <tr>
+            <td id="0-0" onclick="playersTurn(0, 0)">
+                <img src="X-mark.jpg" id="x0-0">
+                <img src="Circle.jpg" id="c0-0">
+                <img src="Blank.jpg" id="b0-0">
+            </td>
+            <td id="0-1" onclick="playersTurn(0, 1)">
+                <img src="X-mark.jpg" id="x0-1">
+                <img src="Circle.jpg" id="c0-1">
+                <img src="Blank.jpg" id="b0-1">
+            </td>
+            <td id="0-2" onclick="playersTurn(0, 2)">
+                <img src="X-mark.jpg" id="x0-2">
+                <img src="Circle.jpg" id="c0-2">
+                <img src="Blank.jpg" id="b0-2">
+            </td>
+        </tr>
+        <tr>
+            <td id="1-0" onclick="playersTurn(1, 0)">
+                <img src="X-mark.jpg" id="x1-0">
+                <img src="Circle.jpg" id="c1-0">
+                <img src="Blank.jpg" id="b1-0">
+            </td>
+            <td id="1-1" onclick="playersTurn(1, 1)">
+                <img src="X-mark.jpg" id="x1-1">
+                <img src="Circle.jpg" id="c1-1">
+                <img src="Blank.jpg" id="b1-1">
+            </td>
+            <td id="1-2" onclick="playersTurn(1, 2)">
+                <img src="X-mark.jpg" id="x1-2">
+                <img src="Circle.jpg" id="c1-2">
+                <img src="Blank.jpg" id="b1-2">
+            </td>
+        </tr>
+        <tr>
+            <td id="2-0" onclick="playersTurn(2, 0)">
+                <img src="X-mark.jpg" id="x2-0">
+                <img src="Circle.jpg" id="c2-0">
+                <img src="Blank.jpg" id="b2-0">
+            </td>
+            <td id="2-1" onclick="playersTurn(2, 1)">
+                <img src="X-mark.jpg" id="x2-1">
+                <img src="Circle.jpg" id="c2-1">
+                <img src="Blank.jpg" id="b2-1">
+            </td>
+            <td id="2-2" onclick="playersTurn(2, 2)">
+                <img src="X-mark.jpg" id="x2-2">
+                <img src="Circle.jpg" id="c2-2">
+                <img src="Blank.jpg" id="b2-2">
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</body>
+</html>
